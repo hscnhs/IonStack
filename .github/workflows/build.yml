@@ -4,12 +4,12 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'IonStack/IonStack/CVE-2026-43499/exploit/**'
+      - 'IonStack/CVE-2026-43499/exploit/**'
       - '.github/workflows/build.yml'
   pull_request:
     branches: [main, master]
     paths:
-      - 'IonStack/IonStack/CVE-2026-43499/exploit/**'
+      - 'IonStack/CVE-2026-43499/exploit/**'
       - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: IonStack/IonStack/CVE-2026-43499/exploit
+        working-directory: IonStack/CVE-2026-43499/exploit
 
     steps:
       - name: Checkout
@@ -97,8 +97,8 @@ jobs:
         with:
           name: ${{ env.PROJECT }}-preload
           path: |
-            IonStack/IonStack/CVE-2026-43499/exploit/build/${{ env.PROJECT }}/bin/preload.so
-            IonStack/IonStack/CVE-2026-43499/exploit/build/embed/su_daemon_aarch64_pie
+            IonStack/CVE-2026-43499/exploit/build/${{ env.PROJECT }}/bin/preload.so
+            IonStack/CVE-2026-43499/exploit/build/embed/su_daemon_aarch64_pie
           if-no-files-found: error
           retention-days: 30
 
