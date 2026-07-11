@@ -1,0 +1,108 @@
+name: Build resukisu-kirin9k exploit
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'IonStack/IonStack/CVE-2026-43499/exploit/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'IonStack/IonStack/CVE-2026-43499/exploit/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Target project name'
+        required: false
+        default: 'resukisu-kirin9k'
+
+env:
+  NDK_VERSION: r29
+  API: 35
+  PROJECT: resukisu-kirin9k
+
+jobs:
+  build:
+    name: Build aarch64 preload.so
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: IonStack/IonStack/CVE-2026-43499/exploit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Override project from input
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.project != ''
+        run: echo "PROJECT=${{ github.event.inputs.project }}" >> $GITHUB_ENV
+
+      - name: List available targets
+        run: make list-projects
+
+      - name: Cache Android NDK
+        id: cache-ndk
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/android-ndk-cache/android-ndk-${{ env.NDK_VERSION }}
+          key: ndk-${{ env.NDK_VERSION }}-linux-x86_64
+
+      - name: Download Android NDK
+        if: steps.cache-ndk.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "${{ runner.temp }}/android-ndk-cache"
+          cd "${{ runner.temp }}/android-ndk-cache"
+          curl -fL -o ndk.zip \
+            "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
+          unzip -q ndk.zip
+          rm ndk.zip
+          mv android-ndk-* "android-ndk-${NDK_VERSION}"
+          echo "NDK installed at: $(pwd)/android-ndk-${NDK_VERSION}"
+          ls -d android-ndk-*/toolchains/llvm/prebuilt/linux-x86_64
+
+      - name: Setup NDK environment
+        run: |
+          NDK_ROOT="${{ runner.temp }}/android-ndk-cache/android-ndk-${NDK_VERSION}"
+          TOOLCHAIN="${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64"
+          SYSROOT="${TOOLCHAIN}/sysroot"
+          CC="${TOOLCHAIN}/bin/aarch64-linux-android${API}-clang"
+
+          test -f "${CC}" || { echo "ERROR: ${CC} not found"; exit 1; }
+          "${CC}" --version
+
+          echo "NDK_ROOT=${NDK_ROOT}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=${NDK_ROOT}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=${NDK_ROOT}" >> $GITHUB_ENV
+          echo "SYSROOT=${SYSROOT}" >> $GITHUB_ENV
+          echo "CC=${CC}" >> $GITHUB_ENV
+
+      - name: Show build info
+        run: |
+          make info PROJECT=${{ env.PROJECT }}
+
+      - name: Build exploit (preload.so)
+        run: |
+          make preload PROJECT=${{ env.PROJECT }}
+          echo "=== Build complete ==="
+          ls -la build/${{ env.PROJECT }}/bin/
+          echo "=== SHA256 ==="
+          sha256sum build/${{ env.PROJECT }}/bin/preload.so
+          echo "=== File size ==="
+          du -h build/${{ env.PROJECT }}/bin/preload.so
+
+      - name: Upload preload.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT }}-preload
+          path: |
+            IonStack/IonStack/CVE-2026-43499/exploit/build/${{ env.PROJECT }}/bin/preload.so
+            IonStack/IonStack/CVE-2026-43499/exploit/build/embed/su_daemon_aarch64_pie
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Cleanup build artifacts
+        if: always()
+        run: |
+          make clean || true
