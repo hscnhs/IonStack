@@ -1,4 +1,4 @@
-name: Build resukisu-kirin9k exploit
+name: Build huawei_noh-an01_5_10_43 exploit
 
 on:
   push:
@@ -21,7 +21,7 @@ on:
 env:
   NDK_VERSION: r29
   API: 35
-  PROJECT: resukisu-kirin9k
+  PROJECT: huawei_noh-an01_5_10_43
 
 jobs:
   build:
